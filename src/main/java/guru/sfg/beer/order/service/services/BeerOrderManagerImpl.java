@@ -2,6 +2,8 @@ package guru.sfg.beer.order.service.services;
 
 import java.util.UUID;
 
+import javax.sound.sampled.Line;
+
 import org.springframework.messaging.Message;
 import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.statemachine.StateMachine;
@@ -15,6 +17,7 @@ import guru.sfg.beer.order.service.domain.BeerOrderEventEnum;
 import guru.sfg.beer.order.service.domain.BeerOrderStatusEnum;
 import guru.sfg.beer.order.service.repositories.BeerOrderRepository;
 import guru.sfg.beer.order.service.stateMachine.BeerOrderStateChangedInterceptor;
+import guru.sfg.brewery.model.BeerOrderDto;
 import lombok.RequiredArgsConstructor;
 
 @Service
@@ -80,5 +83,47 @@ public class BeerOrderManagerImpl implements BeerOrderManager {
 		} else {
 			sendBeerOrderEvent(order,BeerOrderEventEnum.VALIDATION_FAILED);
 		}
+	}
+
+
+	@Override
+	public void beerOrderAllocationPassed(BeerOrderDto beerOrder) {
+		BeerOrder order = beerOrderRepository.findOneById(beerOrder.getId());
+		
+		sendBeerOrderEvent(order, BeerOrderEventEnum.ALLOCATION_SUCCESS);
+		
+		updateAllocatedQty(beerOrder, order);
+	}
+
+	private void updateAllocatedQty(BeerOrderDto dto, BeerOrder order) {
+		BeerOrder allocated = beerOrderRepository.findOneById(dto.getId());
+		
+		allocated.getBeerOrderLines().forEach(line -> {
+			dto.getBeerOrderLines().forEach(dtoLine -> {
+				if(dtoLine.getBeerId().equals(line.getId())) {
+					line.setQuantityAllocated(dtoLine.getQuantityAllocated());
+				}
+			});
+		});
+		
+		beerOrderRepository.saveAndFlush(order);
+	}
+	
+	
+	@Override
+	public void beerOrderAllocationPendingInventory(BeerOrderDto beerOrder) {
+		BeerOrder order = beerOrderRepository.findOneById(beerOrder.getId());
+		
+		sendBeerOrderEvent(order, BeerOrderEventEnum.ALLOCATION_NO_INVENTORY);
+		
+		updateAllocatedQty(beerOrder, order);
+	}
+
+
+	@Override
+	public void beerOrderAllocationFailed(BeerOrderDto beerOrder) {
+		BeerOrder order = beerOrderRepository.findOneById(beerOrder.getId());
+		sendBeerOrderEvent(order, BeerOrderEventEnum.ALLOCATION_FAILED);
+		
 	}
 }
