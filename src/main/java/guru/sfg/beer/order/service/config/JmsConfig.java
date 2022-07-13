@@ -10,7 +10,8 @@ import org.springframework.jms.support.converter.MessageType;
 public class JmsConfig {
 
 	public static final String VALIDATE_ORDER_QUEUE = "validate-order";
-	
+
+	public static final String VALIDATE_ORDER_RESULT_QUEUE = "validate-order-result";
 	@Bean
 	public MessageConverter jacksonJmsMessageConverter() {
 		MappingJackson2MessageConverter mj2mc = new MappingJackson2MessageConverter();
