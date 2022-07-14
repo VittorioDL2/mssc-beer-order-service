@@ -139,4 +139,14 @@ public class BeerOrderManagerImpl implements BeerOrderManager {
 		}, 
 				() -> log.debug("not present"));
 	}
+
+
+	@Override
+	public void cancelOrder(UUID orderId) {
+		Optional<BeerOrder> orderOpt = beerOrderRepository.findById(orderId);
+		orderOpt.ifPresentOrElse(order -> {
+			sendBeerOrderEvent(order, BeerOrderEventEnum.CANCEL_ORDER);
+		}, 
+				() -> log.debug("not present"));
+	}
 }
