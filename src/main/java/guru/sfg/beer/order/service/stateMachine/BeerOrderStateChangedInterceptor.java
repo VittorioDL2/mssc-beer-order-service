@@ -10,6 +10,7 @@ import org.springframework.statemachine.state.State;
 import org.springframework.statemachine.support.StateMachineInterceptorAdapter;
 import org.springframework.statemachine.transition.Transition;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import guru.sfg.beer.order.service.domain.BeerOrder;
 import guru.sfg.beer.order.service.domain.BeerOrderEventEnum;
@@ -27,6 +28,7 @@ public class BeerOrderStateChangedInterceptor extends StateMachineInterceptorAda
 
 	private final BeerOrderRepository beerOrderRepository;
 	
+	@Transactional
 	@Override
 	public void preStateChange(State<BeerOrderStatusEnum, BeerOrderEventEnum> state,
 			Message<BeerOrderEventEnum> message, Transition<BeerOrderStatusEnum, BeerOrderEventEnum> transition,
@@ -35,10 +37,10 @@ public class BeerOrderStateChangedInterceptor extends StateMachineInterceptorAda
 			.flatMap(msg -> Optional.ofNullable((String) msg.getHeaders().getOrDefault(BeerOrderManagerImpl.ORDER_ID_HEADER, "")))
 			.ifPresent(orderId -> {
 				log.info("saving state for order " + orderId + " status " + state.getId());
-				
-				BeerOrder order = beerOrderRepository.getOne(UUID.fromString(orderId));
-				order.setOrderStatus(state.getId());
-				beerOrderRepository.saveAndFlush(order);
+				beerOrderRepository.findById(UUID.fromString(orderId)).ifPresentOrElse(order -> {
+					order.setOrderStatus(state.getId());
+					beerOrderRepository.saveAndFlush(order);
+				}, () -> log.error("not present"));
 			});
 	}
 

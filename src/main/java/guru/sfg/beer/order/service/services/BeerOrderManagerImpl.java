@@ -1,5 +1,6 @@
 package guru.sfg.beer.order.service.services;
 
+import java.util.Optional;
 import java.util.UUID;
 
 import javax.sound.sampled.Line;
@@ -19,8 +20,10 @@ import guru.sfg.beer.order.service.repositories.BeerOrderRepository;
 import guru.sfg.beer.order.service.stateMachine.BeerOrderStateChangedInterceptor;
 import guru.sfg.brewery.model.BeerOrderDto;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class BeerOrderManagerImpl implements BeerOrderManager {
 	
@@ -69,20 +72,21 @@ public class BeerOrderManagerImpl implements BeerOrderManager {
 		return sm;
 	}
 
-
+	@Transactional
 	@Override
 	public void processValidationResult(UUID beerId, Boolean isValid) {
-		BeerOrder order = beerOrderRepository.getOne(beerId);
+		beerOrderRepository.findById(beerId).ifPresentOrElse(order -> {
+			if(isValid) {
+				sendBeerOrderEvent(order,BeerOrderEventEnum.VALIDATION_PASSED);
+				
+				BeerOrder validatedOrder = beerOrderRepository.findOneById(beerId);
+				
+				sendBeerOrderEvent(validatedOrder, BeerOrderEventEnum.ALLOCATE_ORDER);
+			} else {
+				sendBeerOrderEvent(order,BeerOrderEventEnum.VALIDATION_FAILED);
+			}
+		}, () -> log.debug("not present"));
 		
-		if(isValid) {
-			sendBeerOrderEvent(order,BeerOrderEventEnum.VALIDATION_PASSED);
-			
-			BeerOrder validatedOrder = beerOrderRepository.findOneById(beerId);
-			
-			sendBeerOrderEvent(validatedOrder, BeerOrderEventEnum.ALLOCATE_ORDER);
-		} else {
-			sendBeerOrderEvent(order,BeerOrderEventEnum.VALIDATION_FAILED);
-		}
 	}
 
 
@@ -122,8 +126,17 @@ public class BeerOrderManagerImpl implements BeerOrderManager {
 
 	@Override
 	public void beerOrderAllocationFailed(BeerOrderDto beerOrder) {
-		BeerOrder order = beerOrderRepository.findOneById(beerOrder.getId());
-		sendBeerOrderEvent(order, BeerOrderEventEnum.ALLOCATION_FAILED);
+		beerOrderRepository.findById(beerOrder.getId()).ifPresentOrElse(order -> sendBeerOrderEvent(order, BeerOrderEventEnum.ALLOCATION_FAILED), () -> log.debug("not present"));
 		
+	}
+
+
+	@Override
+	public void beerOrderPickedUp(UUID orderId) {
+		Optional<BeerOrder> orderOpt = beerOrderRepository.findById(orderId);
+		orderOpt.ifPresentOrElse(order -> {
+			sendBeerOrderEvent(order, BeerOrderEventEnum.BEERORDER_PICKED_UP);
+		}, 
+				() -> log.debug("not present"));
 	}
 }
