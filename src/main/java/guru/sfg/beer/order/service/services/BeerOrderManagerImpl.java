@@ -3,6 +3,7 @@ package guru.sfg.beer.order.service.services;
 import java.util.Optional;
 import java.util.UUID;
 
+import javax.persistence.EntityManager;
 import javax.sound.sampled.Line;
 
 import org.springframework.messaging.Message;
@@ -31,6 +32,7 @@ public class BeerOrderManagerImpl implements BeerOrderManager {
 	private final BeerOrderRepository beerOrderRepository;
 	private final StateMachineFactory<BeerOrderStatusEnum, BeerOrderEventEnum> smf;
 	private final BeerOrderStateChangedInterceptor interceptor;
+	private final EntityManager entityManager;
 	
 	@Transactional
 	@Override
@@ -75,6 +77,8 @@ public class BeerOrderManagerImpl implements BeerOrderManager {
 	@Transactional
 	@Override
 	public void processValidationResult(UUID beerId, Boolean isValid) {
+		entityManager.flush();
+		
 		beerOrderRepository.findById(beerId).ifPresentOrElse(order -> {
 			if(isValid) {
 				sendBeerOrderEvent(order,BeerOrderEventEnum.VALIDATION_PASSED);
@@ -86,7 +90,6 @@ public class BeerOrderManagerImpl implements BeerOrderManager {
 				sendBeerOrderEvent(order,BeerOrderEventEnum.VALIDATION_FAILED);
 			}
 		}, () -> log.debug("not present"));
-		
 	}
 
 
