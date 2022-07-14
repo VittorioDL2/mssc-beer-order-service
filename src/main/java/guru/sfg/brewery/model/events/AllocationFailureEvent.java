@@ -11,8 +11,6 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class ValidateOrderResult {
-
+public class AllocationFailureEvent {
 	private UUID orderId;
-	private Boolean isValid;
 }

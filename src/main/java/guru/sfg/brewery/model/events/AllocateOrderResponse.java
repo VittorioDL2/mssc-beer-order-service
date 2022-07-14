@@ -1,6 +1,5 @@
 package guru.sfg.brewery.model.events;
 
-import java.util.UUID;
 
 import guru.sfg.brewery.model.BeerOrderDto;
 import lombok.AllArgsConstructor;

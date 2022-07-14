@@ -12,6 +12,7 @@ import guru.sfg.beer.order.service.web.mappers.BeerOrderMapper;
 import guru.sfg.brewery.model.BeerOrderDto;
 import guru.sfg.brewery.model.events.ValidateOrderRequest;
 
+import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.jms.core.JmsTemplate;
@@ -34,13 +35,15 @@ public class ValidateOrderAction implements Action<BeerOrderStatusEnum, BeerOrde
 	public void execute(StateContext<BeerOrderStatusEnum, BeerOrderEventEnum> context) {
 		String beerOrderId = (String) context.getMessage().getHeaders().get(BeerOrderManagerImpl.ORDER_ID_HEADER);
 		
-		BeerOrder order = repository.findOneById(UUID.fromString(beerOrderId));
+		Optional<BeerOrder> orderOpt = repository.findById(UUID.fromString(beerOrderId));
 		
-		BeerOrderDto dto = mapper.beerOrderToDto(order);
-		
-		jmsTemplate.convertAndSend(JmsConfig.VALIDATE_ORDER_QUEUE, ValidateOrderRequest.builder().beerOrder(dto).build());
-		
-		log.info("validate request sent");
+		orderOpt.ifPresentOrElse(order -> {
+			BeerOrderDto dto = mapper.beerOrderToDto(order);
+			
+			jmsTemplate.convertAndSend(JmsConfig.VALIDATE_ORDER_QUEUE, ValidateOrderRequest.builder().beerOrder(dto).build());
+			
+			log.info("validate request sent");
+		}, () -> log.error("validate order"));
 	}
 
 
