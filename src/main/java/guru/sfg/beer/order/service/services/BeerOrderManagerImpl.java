@@ -2,6 +2,8 @@ package guru.sfg.beer.order.service.services;
 
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.persistence.EntityManager;
 import javax.sound.sampled.Line;
@@ -102,6 +104,35 @@ public class BeerOrderManagerImpl implements BeerOrderManager {
 		updateAllocatedQty(beerOrder, order);
 	}
 
+	private void awaitForStatus(UUID orderId, BeerOrderStatusEnum statusEnum) {
+		AtomicInteger loopCount = new AtomicInteger(0);
+		AtomicBoolean found = new AtomicBoolean(false);
+		
+		while(!found.get()) {
+			if(loopCount.incrementAndGet() > 10) {
+				found.set(true);
+				log.debug("retries exceeded");
+			}
+			
+			beerOrderRepository.findById(orderId)
+				.ifPresentOrElse(order -> {
+					if(order.getOrderStatus().equals(statusEnum)) {
+						found.set(true);
+						log.debug("found");
+					}
+				}, () -> log.debug("ORDER ID NOT FOUND"));
+			
+			if(!found.get()) {
+				try {
+					log.debug("sleeping for retry");
+					Thread.sleep(100);
+				} catch(Exception e) {
+					
+				}
+			}
+		}
+	}
+	
 	private void updateAllocatedQty(BeerOrderDto dto, BeerOrder order) {
 		BeerOrder allocated = beerOrderRepository.findOneById(dto.getId());
 		
